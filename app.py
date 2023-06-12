@@ -6,14 +6,18 @@ from flask import Flask, request, Response
 import requests
 import jose
 
-CLIENT_ID = os.environ['CLIENT_ID']
-CLIENT_SECRET = os.environ['CLIENT_SECRET']
-AUTHORIZATION = f'Basic {
-    base64.b64encode(
-        f"{CLIENT_ID}:{CLIENT_SECRET}".encode("utf-8")
-    )
-        .decode("utf-8")
-}'
+try:
+    CLIENT_ID = os.environ['CLIENT_ID']
+except KeyError:
+    raise Exception('CLIENT_ID environment variable not set')
+try:
+    CLIENT_SECRET = os.environ['CLIENT_SECRET']
+except KeyError:
+    raise Exception('CLIENT_SECRET environment variable not set')
+AUTHORIZATION = 'Basic ' + base64.b64encode(
+    f"{CLIENT_ID}:{CLIENT_SECRET}".encode("utf-8")
+)\
+    .decode("utf-8")
 JWK = None
 JWK_EXPIRY = None
 
