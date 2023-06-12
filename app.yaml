@@ -1,0 +1,4 @@
+﻿runtime: python39
+service: login-splash-token-server
+instance_class: F1
+entrypoint: flask run -p $PORT
