@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta
+import traceback
 import base64
 import os
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, jsonify
+from flask_cors import CORS
 import requests
-import jose
+from jose import jwt as joseJwt
+
+JWK = None
+JWK_EXPIRY = None
 
 try:
     CLIENT_ID = os.environ['CLIENT_ID']
@@ -14,17 +19,20 @@ try:
     CLIENT_SECRET = os.environ['CLIENT_SECRET']
 except KeyError:
     raise Exception('CLIENT_SECRET environment variable not set')
-AUTHORIZATION = 'Basic ' + base64.b64encode(
-    f"{CLIENT_ID}:{CLIENT_SECRET}".encode("utf-8")
-)\
-    .decode("utf-8")
-JWK = None
-JWK_EXPIRY = None
+
+AUTHORIZATION = f'{CLIENT_ID}:{CLIENT_SECRET}'
+AUTHORIZATION = AUTHORIZATION.encode('utf-8')
+AUTHORIZATION = base64.b64encode(AUTHORIZATION)
+AUTHORIZATION = AUTHORIZATION.decode('utf-8')
+AUTHORIZATION = f'Basic {AUTHORIZATION}'
+
+app = Flask(__name__)
+CORS(app)
 
 def esi_request(code):
     return requests.post(
-        'https://login.eveonline.com/v2/oauth/token',
-        params={
+        url='https://login.eveonline.com/v2/oauth/token',
+        data={
             'grant_type': 'authorization_code',
             'code': code,
         },
@@ -39,76 +47,54 @@ def jwks_request():
     return requests.get('https://login.eveonline.com/oauth/jwks')
 
 def decode_jwt(jwt):
-    return jose.jwt.decode(
-        jwt=jwt,
-        key=JWK,
+    return joseJwt.decode(
+        jwt,
+        JWK,
         algorithms=[JWK['alg']],
         audience="EVE Online",
         issuer="login.eveonline.com",
     )
 
-app = Flask(__name__)
-
-@app.route('/login', methods=['POST'])
+@app.route('/', methods=['POST'])
 def login():
+    global JWK, JWK_EXPIRY
+
     code = request.args.get('code')
     if code is None:
-        return Response(
-            response='Request missing ESI Authorization Code',
-            status=400
-        )
+        return jsonify({ 'err': 'Request missing ESI Authorization Code' }), 400
     
     esi_rep = esi_request(code)
     if esi_rep.status_code != 200:
-        return Response(
-            response='Problem authenticating with ESI',
-            status=esi_rep.status_code,
-        )
+        return jsonify({ 'err': 'Problem authenticating with ESI' }), esi_rep.status_code
     
     try:
         esi_json = esi_rep.json()
     except:
-        return Response(
-            response='ESI Response was not JSON',
-            status=500,
-        )
+        print(traceback.format_exc())
+        return jsonify({ 'err': 'ESI Response was not JSON' }), 500
     
     refresh_token = esi_json.get('refresh_token')
     if refresh_token is None:
-        return Response(
-            response='ESI Response missing Refresh Token',
-            status=500,
-        )
+        return jsonify({ 'err': 'ESI Response missing Refresh Token' }), 500
     
     jwt = esi_json.get('access_token')
     if jwt is None:
-        return Response(
-            response='ESI Response missing Access Token',
-            status=500,
-        )
+        return jsonify({ 'err': 'ESI Response missing Access Token' }), 500
     
     if JWK is None or JWK_EXPIRY is None or JWK_EXPIRY < datetime.now():
         jwks_rep = jwks_request()
         if jwks_rep.status_code != 200:
-            return Response(
-                response='Problem getting JWKS',
-                status=jwks_rep.status_code,
-            )
+            return jsonify({ 'err': 'Problem getting JWKS' }), jwks_rep.status_code,
         
         try:
             jwks_json = jwks_rep.json()
         except:
-            return Response(
-                response='JWKS Response was not JSON',
-                status=500,
-            )
+            print(traceback.format_exc())
+            return jsonify({ 'err': 'JWKS Response was not JSON' }), 500
         
         jwks = jwks_json.get('keys')
         if jwks is None or len(jwks) == 0:
-            return Response(
-                response='JWKS Response missing Keys',
-                status=500,
-            )
+            return jsonify({ 'err': 'JWKS Response missing Keys' }), 500
         
         JWK = jwks[0]
 
@@ -118,38 +104,25 @@ def login():
     try:
         decoded_jwt = decode_jwt(jwt)
     except:
-        return Response(
-            response='JWT could not be decoded',
-            status=500,
-        )
+        print(traceback.format_exc())
+        return jsonify({ 'err': 'JWT could not be decoded' }), 500
     
     character_id = decoded_jwt.get('sub')
     if character_id is None or len(character_id) < 15:
-        return Response(
-            response='JWT missing Character ID',
-            status=500,
-        )
+        return jsonify({ 'err': 'JWT missing Character ID' }), 500
     
     try:
         character_id = int(character_id[14:])
     except:
-        return Response(
-            response='JWT Character ID was Invalid',
-            status=500,
-        )
+        print(traceback.format_exc())
+        return jsonify({ 'err': 'JWT Character ID was Invalid' }), 500
     
     character_name = decoded_jwt.get('name')
     if character_name is None:
-        return Response(
-            response='JWT missing Character Name',
-            status=500,
-        )
+        return jsonify({ 'err': 'JWT missing Character Name' }), 500
     
-    return Response(
-        response={
-            'character_id': character_id,
-            'character_name': character_name,
-            'refresh_token': refresh_token,
-        },
-        status=200,
-    )
+    return jsonify({
+        'characterId': character_id,
+        'characterName': character_name,
+        'refreshToken': refresh_token,
+    }), 200
