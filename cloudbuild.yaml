@@ -1,15 +1,12 @@
 ﻿steps:
-- name: 'gcr.io/$PROJECT_ID/envsubst'
-  args:
-  - 'app.yaml'
-  env:
-  - '_CLIENT_ID=${_CLIENT_ID}'
-  - '_CLIENT_SECRET=${_CLIENT_SECRET}'
 - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-  entrypoint: gcloud
+  entrypoint: 'bash'
   args:
-  - 'app'
-  - 'deploy'
+  - '-c'
+  - |
+    sed -i 's/##CLIENT_ID##/${_CLIENT_ID}/g' app.yaml
+    sed -i 's/##CLIENT_SECRET##/${_CLIENT_SECRET}/g' app.yaml
+    gcloud app deploy
 timeout: '1600s'
 options:
   logging: CLOUD_LOGGING_ONLY
