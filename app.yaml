@@ -2,3 +2,6 @@
 service: eve-login-splash-token-server-py
 instance_class: F1
 entrypoint: flask run -p $PORT
+env_variables:
+  CLIENT_ID: ${_CLIENT_ID}
+  CLIENT_SECRET: ${_CLIENT_SECRET}
