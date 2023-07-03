@@ -19,6 +19,7 @@ except KeyError:
 try:
     ESI_APPS = json.loads(ESI_APPS_STR)
 except Exception as e:
+    print(os.environ)
     raise Exception('ESI_APP environment variable is not valid JSON: ' +
         f'value: {ESI_APPS_STR}, err: {e}')
 try:
