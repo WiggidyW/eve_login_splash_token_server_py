@@ -13,13 +13,14 @@ JWK = None
 JWK_EXPIRY = None
 
 try:
-    ESI_APPS = os.environ['ESI_APP']
+    ESI_APPS_STR = os.environ['ESI_APP']
 except KeyError:
-    ESI_APPS = '{}'
+    ESI_APPS_STR = '{}'
 try:
-    ESI_APPS = json.loads(ESI_APPS)
+    ESI_APPS = json.loads(ESI_APPS_STR)
 except Exception as e:
-    raise Exception(f'ESI_APP environment variable is not valid JSON: {e}')
+    raise Exception('ESI_APP environment variable is not valid JSON: ' +
+        f'value: {ESI_APPS_STR}, err: {e}')
 try:
     CLIENT_ID = os.environ['CLIENT_ID']
 except KeyError:
