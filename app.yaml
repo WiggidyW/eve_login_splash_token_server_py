@@ -3,5 +3,8 @@ service: eve-login-splash-token-server-py
 instance_class: F1
 entrypoint: flask run -p $PORT
 env_variables:
+  # JSON { "namespace": { "client_id": string, "client_secret": string } }
+  ESI_APP: ##ESI_APP##
+  # String
   CLIENT_ID: ##CLIENT_ID##
   CLIENT_SECRET: ##CLIENT_SECRET##

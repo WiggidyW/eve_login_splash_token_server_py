@@ -4,6 +4,7 @@
   args:
   - '-c'
   - |
+    sed -i 's/##ESI_APP##/${_ESI_APP}/g' app.yaml
     sed -i 's/##CLIENT_ID##/${_CLIENT_ID}/g' app.yaml
     sed -i 's/##CLIENT_SECRET##/${_CLIENT_SECRET}/g' app.yaml
     gcloud app deploy
